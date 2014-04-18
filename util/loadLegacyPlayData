@@ -1,0 +1,117 @@
+var config = require('../config/app_config.js');
+var MongoClient = require('mongodb').MongoClient
+    , format = require('util').format;
+var fs = require('fs');
+var csv = require('csv');
+
+//var request = require('request');
+
+//Define the data load namespace
+var dataLoad = dataLoad || {};
+
+//Namespace for data retrieval
+dataLoad.legacyData = dataLoad.legacyData || {};
+
+
+dataLoad.legacyData.loadIntoMongo = function () {
+
+    MongoClient.connect('mongodb://' + config.mongo_host + '/' + config.mongo_database, function (err, db) {
+        if (err) throw err;
+
+        dataLoad.legacyData.walkDirectories('/Users/hstrauss/Documents/NCAA-Football-Analytics/data', function (err, results) {
+            if (err) throw err;
+            for (var i = 0; i < results.length; i++) {
+                if (results[i].match(/.csv/m)) {
+                    var finalString = results[i];
+                    var path = results[i].match(/.*\//m);
+                    var replaceString = (finalString.replace(path, ''));
+                    var replaceString = (replaceString.replace('.csv', ''));
+
+                    var yearPath = results[i].match(/.*cfbstats.com-/m);
+
+                    var replaceYear = (finalString.replace(yearPath, ''));
+                    var followingPath = replaceYear.match(/-.*/m);
+                    var replaceYear = (replaceYear.replace(followingPath, ''));
+
+                    dataLoad.legacyData.processCSVs(results[i],db,replaceString, replaceYear);
+
+                }
+                else {
+
+                    console.log("Looks like a README ---> " + results[i]);
+                }
+
+
+            }
+
+
+        });
+    });
+
+
+}
+
+dataLoad.legacyData.processCSVs = function (dir,db, collection, year) {
+
+    csv()
+        .from.path(dir, { delimiter: ',', escape: '"' })
+        .to.array(function (data) {
+            var columnsNames = [];
+            for (var k = 0; k < data.length; k++) {
+                var dictToPush = {}
+                dictToPush["year"] = year;
+                for (var j = 0; j < data[0].length; j++) {
+                    if (k == 0) {
+                        columnsNames.push(data[0][j]);
+                    }
+                    else{
+                        dictToPush[columnsNames[j]] = data[k][j];
+                    }
+                }
+                if (k !== 0) {
+
+                    db.collection(collection).insert(dictToPush, function (err, result) {
+                        if (result){
+                            console.log("CREATING ITEM ---------->" + dictToPush);
+                        }
+                        if (err){
+                            console.log("ERROR ---------->" + err);
+                        }
+
+                    });
+                }
+            }
+        })
+        .on('error', function (error) {
+            console.log("ERROR: " + error.message);
+        });
+
+}
+
+
+dataLoad.legacyData.walkDirectories = function (dir, done) {
+    var results = [];
+    fs.readdir(dir, function (err, list) {
+        if (err) return done(err);
+        var i = 0;
+        (function next() {
+            var file = list[i++];
+            if (!file) return done(null, results);
+            file = dir + '/' + file;
+            fs.stat(file, function (err, stat) {
+                if (stat && stat.isDirectory()) {
+                    dataLoad.legacyData.walkDirectories(file, function (err, res) {
+                        results = results.concat(res);
+                        next();
+                    });
+                } else {
+                    results.push(file);
+                    next();
+                }
+            });
+        })();
+    });
+};
+
+
+dataLoad.legacyData.loadIntoMongo();
