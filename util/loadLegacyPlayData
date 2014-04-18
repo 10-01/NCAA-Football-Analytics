@@ -18,7 +18,7 @@ dataLoad.legacyData.loadIntoMongo = function () {
     MongoClient.connect('mongodb://' + config.mongo_host + '/' + config.mongo_database, function (err, db) {
         if (err) throw err;
 
-        dataLoad.legacyData.walkDirectories('/Users/hstrauss/Documents/NCAA-Football-Analytics/data', function (err, results) {
+        dataLoad.legacyData.walkDirectories(config.legacyDataPath, function (err, results) {
             if (err) throw err;
             for (var i = 0; i < results.length; i++) {
                 if (results[i].match(/.csv/m)) {
