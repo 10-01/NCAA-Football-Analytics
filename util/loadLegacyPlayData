@@ -34,7 +34,6 @@ dataLoad.legacyData.loadIntoMongo = function () {
                     var replaceYear = (replaceYear.replace(followingPath, ''));
 
                     dataLoad.legacyData.processCSVs(results[i],db,replaceString, replaceYear);
-
                 }
                 else {
 
@@ -47,8 +46,6 @@ dataLoad.legacyData.loadIntoMongo = function () {
 
         });
     });
-
-
 }
 
 dataLoad.legacyData.processCSVs = function (dir,db, collection, year) {
@@ -72,7 +69,7 @@ dataLoad.legacyData.processCSVs = function (dir,db, collection, year) {
 
                     db.collection(collection).insert(dictToPush, function (err, result) {
                         if (result){
-                            console.log("CREATING ITEM ---------->" + dictToPush);
+
                         }
                         if (err){
                             console.log("ERROR ---------->" + err);
@@ -85,6 +82,7 @@ dataLoad.legacyData.processCSVs = function (dir,db, collection, year) {
         .on('error', function (error) {
             console.log("ERROR: " + error.message);
         });
+    console.log("PROCESSING ---------->" + collection);
 
 }
 
@@ -114,4 +112,61 @@ dataLoad.legacyData.walkDirectories = function (dir, done) {
 };
 
 
+dataLoad.legacyData.convertMongoType = function (collection_name) {
+
+    MongoClient.connect('mongodb://' + config.mongo_host + '/' + config.mongo_database, function (err, db) {
+        if (err) throw err;
+        var ncaaFootballAnalytics = db.collection(collection_name);
+        ncaaFootballAnalytics.find({}, function(err, resultCursor) {
+            resultCursor.each(function(err, item){
+                dataLoad.legacyData.convertMongoTypeHelper(item);
+            })
+        });
+
+        dataLoad.legacyData.convertMongoTypeHelper = function(object){
+            var newObject = {}
+            for (var key in object){
+                if (key != "_id"){
+                    if(+object[key]){
+                        newObject[key] = parseFloat(object[key])
+                    }
+                    else{
+                        newObject[key] = object[key]
+                    }
+                }
+            }
+            db.collection(collection_name+"_int").insert(newObject, function (err, result) {
+                if (result){
+
+                }
+                if (err){
+                    console.log("ERROR ---------->" + err);
+                }
+
+            });
+        }
+
+
+    });
+}
+
+
 dataLoad.legacyData.loadIntoMongo();
+
+//dataLoad.legacyData.convertMongoType("game");
+//dataLoad.legacyData.convertMongoType("game-statistics");
+//dataLoad.legacyData.convertMongoType("kickoff");
+//dataLoad.legacyData.convertMongoType("kickoff-return");
+
+//dataLoad.legacyData.convertMongoType("pass");
+//dataLoad.legacyData.convertMongoType("play");
+//dataLoad.legacyData.convertMongoType("player");
+//dataLoad.legacyData.convertMongoType("player-game-statistics");
+//
+//dataLoad.legacyData.convertMongoType("punt");
+//dataLoad.legacyData.convertMongoType("punt-return");
+//dataLoad.legacyData.convertMongoType("reception");
+//dataLoad.legacyData.convertMongoType("rush");
+//dataLoad.legacyData.convertMongoType("stadium");
+//dataLoad.legacyData.convertMongoType("team");
+//dataLoad.legacyData.convertMongoType("team-game-statistics");
